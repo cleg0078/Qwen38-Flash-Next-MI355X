@@ -1,44 +1,203 @@
-# Qwen38-Flash-Next-MI355X
-How to run Qwen 3.8 Flash Next on a single MI355Xi?
+# Qwen3.8-Flash-Next on AMD MI355X
 
-I wanted to test a very high end GPU compared a 2 nodes DGX Spark cluster.
+## Running Qwen3.8-Flash-Next on a Single AMD MI355X
 
-It was not out of the box. 
+I wanted to test a **very high-end AMD GPU** and compare it with my **2-node NVIDIA DGX Spark cluster**.
 
-I rented a GPU droplet from DIGITAL OCEAN for 4.5$/hour. 
+The target was simple:
 
-It's the FP8 model, MTP activated. 
+> Run **Qwen3.8-Flash-Next** on a **single AMD MI355X** with **FP8 + MTP enabled**.
 
-I tried to run the mxfp4 model but needs a lot of work. I stopped after 4 hours. The script will be added maybe later. I need to prepare more. I had to disable all hardware gpu acceleration. It loads but only 20tok/s. 
+It was definitely **not working out of the box**, but I finally got it running.
 
+---
 
-For the FP8, I reached for 1 stream between 270 and 180 tokens/s. I will use it more for real projects. 4.5$/hour must be well used! 
+## Hardware
 
-Use this script as a template. I know it's probably not the best but it works... and it was the target. 
+I rented an **AMD MI355X GPU Droplet from DigitalOcean** for approximately:
 
-2 scripts now: 
+**$4.50/hour**
 
-- qwen38-mi355x-fp8-final-functional-all-in-one.sh = First try 
-- qwen38-mi355x-fp8-v8-no-prefix-cache-diagnostic.sh = Can run longer task but prefill cache disabled to avoid GPU coredump! 
+At that price, the GPU needs to be put to good use. :-)
 
-Both of them, you should set the following env vars:
+The configuration tested here uses:
 
+- **1× AMD MI355X**
+- **Qwen3.8-Flash-Next FP8**
+- **vLLM**
+- **ROCm**
+- **MTP enabled**
+- Up to **300K context** depending on configuration
+
+---
+
+## Performance
+
+With the FP8 model and MTP enabled, I reached approximately:
+
+**180–270 tokens/s with a single stream**
+
+Performance varies depending on:
+
+- prompt length
+- context size
+- MTP acceptance rate
+- cache usage
+- workload
+- vLLM configuration
+
+I plan to test this setup more extensively with real-world agent workloads.
+
+---
+
+## MXFP4 Attempt
+
+I also tried to run the **MXFP4 version**.
+
+That turned out to require considerably more work.
+
+After approximately **4 hours of testing**, I stopped for the moment.
+
+I managed to load the model only after disabling most of the GPU hardware acceleration paths, but performance was poor:
+
+**~20 tokens/s**
+
+So although the model could load, this configuration was not useful.
+
+I may add an MXFP4 script later after doing more investigation.
+
+---
+
+# Available Scripts
+
+There are currently two scripts.
+
+### 1. First functional version
+
+```bash
+qwen38-mi355x-fp8-final-functional-all-in-one.sh
+```
+
+This was my first working configuration.
+
+---
+
+### 2. More stable version for longer workloads
+
+```bash
+qwen38-mi355x-fp8-v8-no-prefix-cache-diagnostic.sh
+```
+
+This version can run longer tasks.
+
+**Prefix caching is disabled** because I encountered GPU core dumps during longer workloads when prefix caching was enabled.
+
+This is currently the version I recommend for testing.
+
+---
+
+# Environment Variables
+
+Before running the script, configure the following environment variables:
+
+```bash
+export VLLM_ROCM_USE_AITER=1
+export VLLM_ROCM_USE_AITER_MOE=0
+
+export MTP_TOKENS=3
+export MAX_NUM_SEQS=4
+export GPU_MEMORY_UTILIZATION=0.90
+```
+
+You also need a Hugging Face token to download the model:
+
+```bash
+export HF_TOKEN="your_huggingface_token"
+```
+
+And an API key to protect the vLLM endpoint:
+
+```bash
+export VLLM_API_KEY="$(openssl rand -hex 32)"
+```
+
+You can also provide your own API key:
+
+```bash
+export VLLM_API_KEY="your_api_key"
+```
+
+---
+
+# Installation
+
+Run:
+
+```bash
+./qwen38-mi355x-fp8-v8-no-prefix-cache-diagnostic.sh install
+```
+
+Then build the required environment:
+
+```bash
+./qwen38-mi355x-fp8-v8-no-prefix-cache-diagnostic.sh build
+```
+
+Check that everything is correctly configured:
+
+```bash
+./qwen38-mi355x-fp8-v8-no-prefix-cache-diagnostic.sh check
+```
+
+Finally, start the server:
+
+```bash
+./qwen38-mi355x-fp8-v8-no-prefix-cache-diagnostic.sh start
+```
+
+---
+
+# Recommended Configuration
+
+The configuration that currently works best for me is:
+
+```bash
 export VLLM_ROCM_USE_AITER=1
 export VLLM_ROCM_USE_AITER_MOE=0
 export MTP_TOKENS=3
 export MAX_NUM_SEQS=4
 export GPU_MEMORY_UTILIZATION=0.90
+```
 
-export HF_TOKEN=your HF token to download the model
-export VLLM_API_KEY=your generated token - you can use $(openssl rand -hex 32)
+with:
 
-Then: 
+- **Qwen3.8-Flash-Next FP8**
+- **1× AMD MI355X**
+- **MTP = 3**
+- **AITER enabled**
+- **AITER MoE disabled**
+- **Prefix cache disabled for stability**
 
-qwen38-mi355x-fp8-v8-no-prefix-cache-diagnostic.sh install 
-qwen38-mi355x-fp8-v8-no-prefix-cache-diagnostic.sh build 
-qwen38-mi355x-fp8-v8-no-prefix-cache-diagnostic.sh check 
-qwen38-mi355x-fp8-v8-no-prefix-cache-diagnostic.sh start
+---
 
-Have fun. 
+## Notes
 
+This is probably **not the optimal MI355X configuration**.
 
+It is simply a configuration that **works**, which was the initial objective.
+
+There is certainly room for further tuning of:
+
+- AITER
+- MoE kernels
+- prefix caching
+- MTP
+- batch size
+- concurrency
+- context length
+- ROCm kernel selection
+- memory utilization
+
+Contributions, tests, and better configurations are welcome.
+
+**Have fun!**
